@@ -121,7 +121,7 @@ app.get('/getLastNotification', async (req, res) => {
     try {
       const message = "Alguien tocó el timbre";
       const notificationId = Math.random().toString(36).substring(2);
-      const timestamp = new Date().toISOString();
+      const timestamp = new Date();
     
       const client = await connectToMongo();
       const db = client.db(DATABASE_NAME);
@@ -181,16 +181,14 @@ app.get('/getLastNotification', async (req, res) => {
       console.error('Error al enviar notificaciones push:', error);
     }
   }
-  
-app.post('/api/doorbell', async (req, res) => {
-  try {
-    const { device, action } = req.body;
-    
-    if (device === 'doorbell' && action === 'pressed') {
-      const message = "Alguien tocó el timbre";
+
+
+  app.post('/simularMovimiento', async (req, res) => {
+    try {
+      const message = "Se detecto movimiento";
       const notificationId = Math.random().toString(36).substring(2);
-      const timestamp = new Date().toISOString();
-      
+      const timestamp = new Date();
+    
       const client = await connectToMongo();
       const db = client.db(DATABASE_NAME);
       const collection = db.collection(COLLECTION_NAME);
@@ -201,30 +199,51 @@ app.post('/api/doorbell', async (req, res) => {
       const tokens = await tokensCollection.find({}).toArray();
       
       if (tokens.length > 0) {
-        await sendPushNotifications(tokens.map(t => t.token), message, { notificationId, timestamp });
+        await sendPushNotifications2(tokens.map(t => t.token), message, { notificationId, timestamp });
       }
       
       await client.close();
+
+      console.log("Se mando la notificacion :D")
+    
+      res.status(200).json({ msg: "Movimiento detectado correctamente." });
+    } catch (error) {
+      console.error("Error al simular el sensor:", error);
+      res.status(500).json({ msg: "Error al simular el sensor." });
+    }
+  });
+  
+  async function sendPushNotifications2(tokens, message, data) {
+    const messages = [];
+    
+    for (let pushToken of tokens) {
+      if (!Expo.isExpoPushToken(pushToken)) {
+        console.error(`El token ${pushToken} no es un token válido de Expo`);
+        continue;
+      }
       
-      res.status(200).json({ 
-        success: true, 
-        message: "Señal de timbre recibida y procesada correctamente",
-        notificationId
-      });
-    } else {
-      res.status(400).json({ 
-        success: false, 
-        message: "Formato de solicitud incorrecto" 
+      messages.push({
+        to: pushToken,
+        title: '¡Movimiento! 🔔',
+        body: message,
+        data: data,
+        priority: 'high',     
+        categoryId: 'alarmCategory', 
+        channelId: 'Notifi2',
       });
     }
-  } catch (error) {
-    console.error("Error al procesar la señal del timbre:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Error al procesar la señal del timbre" 
-    });
+    
+    const chunks = expo.chunkPushNotifications(messages);
+    
+    try {
+      for (let chunk of chunks) {
+        const receipts = await expo.sendPushNotificationsAsync(chunk);
+        console.log('Notificaciones enviadas:', chunks);
+      }
+    } catch (error) {
+      console.error('Error al enviar notificaciones push:', error);
+    }
   }
-});
 
 app.post('/registerPushToken', async (req, res) => {
   const { token, deviceInfo } = req.body;
