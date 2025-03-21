@@ -167,6 +167,7 @@ app.get('/getLastNotification', async (req, res) => {
         priority: 'high',     
         categoryId: 'alarmCategory', 
         channelId: 'Notifi',
+        sound: 'quantum_bell.wav'
       });
     }
     
@@ -230,6 +231,7 @@ app.get('/getLastNotification', async (req, res) => {
         priority: 'high',     
         categoryId: 'alarmCategory', 
         channelId: 'Notifi2',
+        sound: 'atomic_bell.wav'
       });
     }
     
